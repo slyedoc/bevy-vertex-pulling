@@ -28,7 +28,7 @@ use bevy::{
         renderer::{RenderContext, RenderDevice, RenderQueue},
         texture::BevyDefault,
         view::{ExtractedView, ViewDepthTexture, ViewTarget, ViewUniform},
-        RenderApp, RenderStage,
+        RenderApp, RenderStage, Extract,
     },
 };
 use bytemuck::{cast_slice, Pod, Zeroable};
@@ -100,7 +100,7 @@ fn setup(mut commands: Commands) {
     let mut n_cubes = std::env::args()
         .nth(1)
         .and_then(|arg| arg.parse::<usize>().ok())
-        .unwrap_or(1_000_000);
+        .unwrap_or(1_000);
     let dim = (n_cubes as f32).sqrt().ceil() as usize;
     n_cubes = (dim * dim) as usize;
     info!("Generating {} cubes", n_cubes);
@@ -129,7 +129,7 @@ fn setup(mut commands: Commands) {
         .insert(CameraController::default());
 }
 
-fn extract_cubes_phase(mut commands: Commands, cameras: Query<Entity, With<Camera3d>>) {
+fn extract_cubes_phase(mut commands: Commands, cameras: Extract<Query<Entity, With<Camera3d>>>) {
     for entity in cameras.iter() {
         commands
             .get_or_spawn(entity)
@@ -137,8 +137,8 @@ fn extract_cubes_phase(mut commands: Commands, cameras: Query<Entity, With<Camer
     }
 }
 
-fn extract_cubes(mut commands: Commands, mut cubes: Query<(Entity, &mut Cubes)>) {
-    for (entity, mut cubes) in cubes.iter_mut() {
+fn extract_cubes(mut commands: Commands, mut cubes: Extract<Query<(Entity, &Cubes)>>) {
+    for (entity, cubes) in cubes.iter() {
         if cubes.extracted {
             commands.get_or_spawn(entity).insert(Cubes {
                 data: Vec::new(),
@@ -147,7 +147,7 @@ fn extract_cubes(mut commands: Commands, mut cubes: Query<(Entity, &mut Cubes)>)
         } else {
             commands.get_or_spawn(entity).insert(cubes.clone());
             // NOTE: Set this after cloning so we don't extract next time
-            cubes.extracted = true;
+            // cubes.extracted = true;
         }
     }
 }
@@ -365,10 +365,10 @@ impl render_graph::Node for CubesPassNode {
             label: Some("main_cubes_pass"),
             // NOTE: The cubes pass loads the color
             // buffer as well as writing to it.
-            color_attachments: &[target.get_color_attachment(Operations {
+            color_attachments: &[Some(target.get_color_attachment(Operations {
                 load: LoadOp::Load,
                 store: true,
-            })],
+            }))],
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                 view: &depth.view,
                 // NOTE: The cubes main pass loads the depth buffer and possibly overwrites it
@@ -496,11 +496,11 @@ impl FromWorld for CubesPipeline {
                 shader: CUBES_SHADER_HANDLE.typed(),
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
-                targets: vec![ColorTargetState {
+                targets: vec![Some(ColorTargetState {
                     format: TextureFormat::bevy_default(),
                     blend: Some(BlendState::REPLACE),
                     write_mask: ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,

@@ -1,44 +1,54 @@
 struct View {
-    view_proj: mat4x4<f32>;
-    view: mat4x4<f32>;
-    inverse_view: mat4x4<f32>;
-    projection: mat4x4<f32>;
-    world_position: vec3<f32>;
-    near: f32;
-    far: f32;
-    width: f32;
-    height: f32;
+    view_proj: mat4x4<f32>,
+    view: mat4x4<f32>,
+    inverse_view: mat4x4<f32>,
+    projection: mat4x4<f32>,
+    world_position: vec3<f32>,
+    near: f32,
+    far: f32,
+    width: f32,
+    height: f32,
 };
 
 struct Cube {
-    center: vec4<f32>;
-    half_extents: vec4<f32>;
-    color: vec4<f32>;
+    center: vec4<f32>,
+    half_extents: vec4<f32>,
+    color: vec4<f32>,
 };
 
 struct Cubes {
-    data: array<Cube>;
+    data: array<Cube>,
 };
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var<uniform> view: View;
 
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<storage> cubes: Cubes;
 
-struct VertexOutput {
-    [[builtin(position)]] clip_position: vec4<f32>;
-    [[location(0)]] world_position: vec4<f32>;
-    [[location(1)]] world_normal: vec3<f32>;
-    [[location(2)]] uvw: vec3<f32>;
-    [[location(3)]] color: vec4<f32>;
+struct Vertex {
+    @builtin(vertex_index) vertex_index: u32,
+    // @location(0) position: vec3<f32>,
+    // @location(1) normal: vec3<f32>,
+    // @location(2) uv: vec2<f32>,
+
+    // @location(3) i_pos_scale: vec4<f32>,
+    // @location(4) i_color: vec4<f32>,
 };
 
-[[stage(vertex)]]
-fn vertex([[builtin(vertex_index)]] vertex_index: u32) -> VertexOutput {
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) world_position: vec4<f32>,
+    @location(1) world_normal: vec3<f32>,
+    @location(2) uvw: vec3<f32>,
+    @location(3) color: vec4<f32>,
+};
+
+@vertex
+fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
 
-    let instance_index = vertex_index >> 3u;
+    let instance_index = vertex.vertex_index >> 3u;
     let cube = cubes.data[instance_index];
 
     // branchless mirroring
@@ -47,7 +57,7 @@ fn vertex([[builtin(vertex_index)]] vertex_index: u32) -> VertexOutput {
         u32(local_camera_pos.y < 0.0) << 2u |
         u32(local_camera_pos.z < 0.0) << 1u |
         u32(local_camera_pos.x < 0.0);
-    let vx = vertex_index ^ mirror_mask;
+    let vx = vertex.vertex_index ^ mirror_mask;
 
     var xyz: vec3<i32> = vec3<i32>(
         i32(vx & 0x1u),
@@ -68,15 +78,15 @@ fn vertex([[builtin(vertex_index)]] vertex_index: u32) -> VertexOutput {
 }
 
 struct FragmentInput {
-    [[builtin(front_facing)]] is_front: bool;
-    [[location(0)]] world_position: vec4<f32>;
-    [[location(1)]] world_normal: vec3<f32>;
-    [[location(2)]] uvw: vec3<f32>;
-    [[location(3)]] color: vec4<f32>;
-};
+    @builtin(front_facing) is_front: bool,
+    @location(0) world_position: vec4<f32>,
+    @location(1) world_normal: vec3<f32>,
+    @location(2) uvw: vec3<f32>,
+    @location(3) color: vec4<f32>,
+}
 
-[[stage(fragment)]]
-fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     return in.color;
 }
 

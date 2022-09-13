@@ -25,7 +25,7 @@ use bevy::{
         renderer::{RenderContext, RenderDevice, RenderQueue},
         texture::BevyDefault,
         view::{ExtractedView, ViewDepthTexture, ViewTarget, ViewUniform},
-        RenderApp, RenderStage,
+        RenderApp, RenderStage, Extract,
     },
 };
 use bevy_vertex_pulling::Instances;
@@ -94,7 +94,7 @@ fn setup(mut commands: Commands) {
     let n_quads = std::env::args()
         .nth(1)
         .and_then(|arg| arg.parse::<usize>().ok())
-        .unwrap_or(1_000_000);
+        .unwrap_or(1_000);
     info!("Generating {} quads", n_quads);
     for _ in 0..n_quads {
         quads.values.push(random_quad2d(&mut rng, min, max, 0.01));
@@ -102,7 +102,7 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle((quads,));
 }
 
-fn extract_quads_phase(mut commands: Commands, cameras: Query<Entity, With<Camera3d>>) {
+fn extract_quads_phase(mut commands: Commands, cameras: Extract<Query<Entity, With<Camera3d>>>) {
     for entity in cameras.iter() {
         commands
             .get_or_spawn(entity)
@@ -110,8 +110,8 @@ fn extract_quads_phase(mut commands: Commands, cameras: Query<Entity, With<Camer
     }
 }
 
-fn extract_quads(mut commands: Commands, mut quads: Query<(Entity, &mut Instances<Quad2d>)>) {
-    for (entity, mut quads) in quads.iter_mut() {
+fn extract_quads(mut commands: Commands, quads: Extract<Query<(Entity, &Instances<Quad2d>)>>) {
+    for (entity, quads) in quads.iter() {
         if quads.extracted {
             commands.get_or_spawn(entity).insert(Instances::<Quad2d> {
                 values: Vec::new(),
@@ -120,7 +120,7 @@ fn extract_quads(mut commands: Commands, mut quads: Query<(Entity, &mut Instance
         } else {
             commands.get_or_spawn(entity).insert(quads.clone());
             // NOTE: Set this after cloning so we don't extract next time
-            quads.extracted = true;
+            //quads.extracted = true;
         }
     }
 }
@@ -278,10 +278,10 @@ impl render_graph::Node for QuadsPassNode {
             label: Some("main_quads_pass"),
             // NOTE: The quads pass loads the color
             // buffer as well as writing to it.
-            color_attachments: &[target.get_color_attachment(Operations {
+            color_attachments: &[Some(target.get_color_attachment(Operations {
                 load: LoadOp::Load,
                 store: true,
-            })],
+            }))],
             depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                 view: &depth.view,
                 // NOTE: The quads main pass loads the depth buffer and possibly overwrites it
@@ -411,11 +411,11 @@ impl FromWorld for QuadsPipeline {
                 shader: QUADS_SHADER_HANDLE.typed(),
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
-                targets: vec![ColorTargetState {
+                targets: vec![Some(ColorTargetState {
                     format: TextureFormat::bevy_default(),
                     blend: Some(BlendState::REPLACE),
                     write_mask: ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
